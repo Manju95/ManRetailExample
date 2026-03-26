@@ -1,0 +1,73 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: order-db
+  template:
+    metadata:
+      labels:
+        app: order-db
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16
+          env:
+            - name: POSTGRES_DB
+              value: orderdb
+            - name: POSTGRES_USER
+              value: order-user
+            - name: POSTGRES_PASSWORD
+              value: order-1234
+          ports:
+            - containerPort: 5433
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-db
+spec:
+  selector:
+    app: order-db
+  ports:
+    - port: 5432
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: orderservice
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: orderservice
+  template:
+    metadata:
+      labels:
+        app: orderservice
+    spec:
+      containers:
+        - name: orderservice
+          image: orderservice:latest
+          imagePullPolicy: Never
+          env:
+            - name: ConnectionStrings__DefaultConnection
+              value: Host=order-db;Port=5433;Database=orderdb;Username=order-user;Password=order-1234
+            - name: Kafka__BootstrapServers
+              value: kafka:9092
+          ports:
+            - containerPort: 80
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: orderservice
+spec:
+  selector:
+    app: orderservice
+  ports:
+    - port: 80
